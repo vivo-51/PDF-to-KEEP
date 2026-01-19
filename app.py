@@ -4,14 +4,14 @@ import google.generativeai as genai
 # Configuration de la page
 st.set_page_config(page_title="Extracteur PDF Viv", page_icon="📝", layout="centered")
 
-# --- PARTIE 1 : CONFIGURATION ---
-# REMPLACE LE TEXTE CI-DESSOUS PAR TA CLÉ AIZA...
-GOOGLE_API_KEY = "AIzaSyC4fsVee-afPXWCyLrmQZgfIti7vF5G4hk"
-
+# --- PARTIE 1 : CONFIGURATION SÉCURISÉE ---
+# L'app va chercher la clé dans le coffre-fort de Streamlit (Secrets)
 try:
+    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=GOOGLE_API_KEY)
 except Exception as e:
-    st.error("Erreur de clé API. Vérifiez le code.")
+    st.error("⚠️ Clé API introuvable. Avez-vous bien configuré les 'Secrets' dans Streamlit ?")
+    st.stop()
 
 def extract_content(uploaded_file):
     """Envoie le PDF à Gemini pour extraction brute"""
