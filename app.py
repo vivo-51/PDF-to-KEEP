@@ -56,12 +56,14 @@ def extract(file):
     if not model_name: return "Erreur: Modèle IA introuvable."
     try:
         model = genai.GenerativeModel(model_name)
+        # On ne force plus le mime_type 'application/pdf' ici pour éviter les bugs Android
+        # On laisse Gemini deviner ou on envoie les données brutes
         response = model.generate_content([
             {'mime_type': 'application/pdf', 'data': file.getvalue()},
             "Transcris tout le texte. Pas de résumé. Texte brut."
         ])
         return response.text
-    except Exception as e: return str(e)
+    except Exception as e: return f"Erreur lecture : {str(e)}"
 
 # --- INTERFACE ---
 
@@ -125,21 +127,17 @@ else:
     st.markdown('<div class="main-header">VIVO <span class="vivo-text">FILES</span></div>', unsafe_allow_html=True)
     st.caption("Importe tes PDF, extrais le texte, et clique sur LESSSSGO.")
     
-    # --- MODIFICATION ICI : J'ai retiré type=['pdf'] ---
-    # Maintenant, la fenêtre système te laissera tout sélectionner.
+    # "Open Bar" : On accepte tout, et on a retiré le filtre Python qui bloquait Android
     files = st.file_uploader("Tes fichiers PDF", accept_multiple_files=True)
     
     if files:
         if st.button("LESSSSGO", type="primary"):
             bar = st.progress(0, "Démarrage...")
             for i, f in enumerate(files):
-                # Petite sécurité pour vérifier que c'est bien un PDF
-                if f.type == "application/pdf" or f.name.endswith(".pdf") or f.name.endswith(".PDF"):
-                    txt = extract(f)
-                    st.session_state.notes.append({"title": f.name, "content": txt})
-                else:
-                    st.warning(f"Le fichier {f.name} n'est pas un PDF, il a été ignoré.")
-                    
+                # PLUS AUCUNE VÉRIFICATION DE TYPE ICI
+                # On envoie direct au charbon
+                txt = extract(f)
+                st.session_state.notes.append({"title": f.name, "content": txt})    
                 bar.progress((i+1)/len(files), f"Fait : {f.name}")
             bar.empty()
             st.rerun()
