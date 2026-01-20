@@ -2,10 +2,10 @@ import streamlit as st
 import google.generativeai as genai
 import time
 
-# --- CONFIGURATION DE LA PAGE ---
+# --- CONFIG ---
 st.set_page_config(page_title="PDF to Keep TURBO", page_icon="⚡", layout="wide")
 
-# --- STYLE CSS ---
+# --- STYLE ---
 st.markdown("""
 <style>
     .stApp { background-color: #F1F3F4; }
@@ -13,123 +13,106 @@ st.markdown("""
     .turbo-text { color: #EAB308; font-weight: 300; }
     .stButton>button { border-radius: 12px; font-weight: bold; border: none; }
     .stButton>button:hover { transform: scale(1.02); }
-    .note-card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- GESTION DE LA CLÉ API ---
-try:
-    if "GOOGLE_API_KEY" in st.secrets:
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    else:
-        st.error("⚠️ Clé API introuvable dans les Secrets.")
-        st.stop()
-except Exception:
-    st.error("⚠️ Erreur de configuration Secrets.")
+# --- SETUP ET AUTO-DÉTECTION ---
+if "notes" not in st.session_state: st.session_state.notes = []
+if "export_mode" not in st.session_state: st.session_state.export_mode = False
+if "current_note_index" not in st.session_state: st.session_state.current_note_index = 0
+
+# Récupération de la clé
+api_key = st.secrets.get("GOOGLE_API_KEY")
+if not api_key:
+    st.error("⚠️ Clé API manquante dans les Secrets.")
     st.stop()
 
-# --- INITIALISATION SESSION ---
-if "notes" not in st.session_state:
-    st.session_state.notes = []
-if "export_mode" not in st.session_state:
-    st.session_state.export_mode = False
-if "current_note_index" not in st.session_state:
-    st.session_state.current_note_index = 0
+genai.configure(api_key=api_key)
 
-# --- FONCTION D'EXTRACTION (ROBUSTE) ---
+# FONCTION INTELLIGENTE QUI TROUVE LE BON MODÈLE
+def get_working_model():
+    """Demande à Google quel modèle est disponible et prend le meilleur."""
+    try:
+        # On liste les modèles disponibles pour ta clé
+        available = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available.append(m.name)
+        
+        # On cherche Flash en priorité, sinon Pro, sinon le premier qui vient
+        if 'models/gemini-1.5-flash' in available:
+            return 'models/gemini-1.5-flash'
+        elif 'models/gemini-1.5-pro' in available:
+            return 'models/gemini-1.5-pro'
+        elif available:
+            return available[0] # On prend le premier qui existe
+        else:
+            return None
+    except Exception as e:
+        return None
+
+# --- MOTEUR D'EXTRACTION ---
 def extract_content(uploaded_file):
-    bytes_data = uploaded_file.getvalue()
-    prompt = "Transcris l'intégralité du texte de ce PDF. Aucun résumé. Texte brut uniquement."
+    model_name = get_working_model()
     
-    # Liste des modèles à essayer dans l'ordre (Si Flash échoue, on tente Pro)
-    models_to_try = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-1.5-pro-latest']
-    
-    last_error = ""
-    
-    for model_name in models_to_try:
-        try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content([{'mime_type': 'application/pdf', 'data': bytes_data}, prompt])
-            return response.text
-        except Exception as e:
-            last_error = str(e)
-            continue # On essaie le suivant
-            
-    return f"Erreur fatale sur tous les modèles : {last_error}"
+    if not model_name:
+        return "ERREUR CRITIQUE : Aucun modèle IA n'a été trouvé pour cette clé API. Vérifiez votre clé."
 
-# --- HEADER ---
+    try:
+        model = genai.GenerativeModel(model_name)
+        bytes_data = uploaded_file.getvalue()
+        prompt = "Transcris l'intégralité du texte de ce PDF. Aucun résumé. Texte brut uniquement."
+        
+        response = model.generate_content([{'mime_type': 'application/pdf', 'data': bytes_data}, prompt])
+        return response.text
+    except Exception as e:
+        return f"Erreur technique ({model_name}) : {str(e)}"
+
+# --- INTERFACE ---
 col1, col2 = st.columns([3, 1])
 with col1:
     st.markdown('<div class="main-header">PDF to Keep <span class="turbo-text">TURBO</span></div>', unsafe_allow_html=True)
 
-# --- MODE EXPORTATION ---
+# Mode Export
 if st.session_state.export_mode and len(st.session_state.notes) > 0:
     idx = st.session_state.current_note_index
     current_note = st.session_state.notes[idx]
     
-    st.markdown("---")
-    st.info(f"⚡ MODE TURBO : Note {idx + 1} sur {len(st.session_state.notes)}")
-    
+    st.info(f"⚡ NOTE {idx + 1} / {len(st.session_state.notes)}")
     st.markdown(f"### 📄 {current_note['title']}")
     st.code(current_note['content'], language="text")
-    st.caption("👆 Cliquez sur le bouton 'Copier' en haut à droite du bloc gris.")
-
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c2:
-        st.link_button("🚀 OUVRIR GOOGLE KEEP", "https://keep.google.com/", use_container_width=True)
     
-    c_prev, c_next = st.columns(2)
-    with c_prev:
-        if idx > 0:
-            if st.button("⬅️ Précédent"):
-                st.session_state.current_note_index -= 1
-                st.rerun()
-    with c_next:
+    c1, c2 = st.columns([1, 1])
+    with c1: st.link_button("🚀 OUVRIR KEEP", "https://keep.google.com/", use_container_width=True)
+    with c2:
         if idx < len(st.session_state.notes) - 1:
-            if st.button("Suivant ➡️", type="primary"):
+            if st.button("Suivant ➡️", type="primary", use_container_width=True):
                 st.session_state.current_note_index += 1
                 st.rerun()
         else:
-            if st.button("✅ Terminer"):
+            if st.button("✅ Terminer", type="primary", use_container_width=True):
                 st.session_state.export_mode = False
                 st.rerun()
 
-# --- MODE DASHBOARD ---
+# Mode Import
 else:
-    with st.expander("📂 IMPORTER DES DOCUMENTS", expanded=True):
-        uploaded_files = st.file_uploader("Glissez vos PDF ici", type=['pdf'], accept_multiple_files=True)
-        
-        if uploaded_files:
-            if st.button(f"LANCER L'EXTRACTION ({len(uploaded_files)})", type="primary"):
-                progress_text = "Opération Turbo en cours..."
-                my_bar = st.progress(0, text=progress_text)
-                
-                for i, file in enumerate(uploaded_files):
-                    text = extract_content(file)
-                    new_note = {
-                        "id": str(time.time()),
-                        "title": file.name.replace('.pdf', ''),
-                        "content": text
-                    }
-                    st.session_state.notes.insert(0, new_note)
-                    my_bar.progress((i + 1) / len(uploaded_files), text=f"Extraction de {file.name}...")
-                
-                my_bar.empty()
-                st.success("Extraction terminée !")
-                st.rerun()
+    with st.expander("📂 IMPORTER", expanded=True):
+        uploaded_files = st.file_uploader("Glissez vos PDF", type=['pdf'], accept_multiple_files=True)
+        if uploaded_files and st.button(f"GO ({len(uploaded_files)})", type="primary"):
+            my_bar = st.progress(0, text="Démarrage...")
+            for i, file in enumerate(uploaded_files):
+                text = extract_content(file)
+                st.session_state.notes.insert(0, {"id": str(time.time()), "title": file.name, "content": text})
+                my_bar.progress((i + 1) / len(uploaded_files), text=f"Fait : {file.name}")
+            my_bar.empty()
+            st.rerun()
 
     if len(st.session_state.notes) > 0:
         st.markdown("---")
-        c1, c2 = st.columns([3, 1])
-        with c1: st.subheader(f"📑 Mes Notes ({len(st.session_state.notes)})")
-        with c2: 
-            if st.button("⚡ LANCER L'EXPORT", type="primary"):
-                st.session_state.export_mode = True
-                st.session_state.current_note_index = 0
-                st.rerun()
+        if st.button("⚡ LANCER L'EXPORT", type="primary"):
+            st.session_state.export_mode = True
+            st.session_state.current_note_index = 0
+            st.rerun()
         
         for note in st.session_state.notes:
-            with st.container():
-                st.markdown(f"**{note['title']}**")
-                st.text_area("Aperçu", value=note['content'], height=100, key=note['id'], disabled=True)
-                st.markdown("---")
+            st.text_area(note['title'], value=note['content'], height=100, disabled=True)
