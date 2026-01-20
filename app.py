@@ -5,17 +5,14 @@ import time
 import json
 
 # --- CONFIGURATION OPTIMISÉE POUR MOBILE ---
+# J'ai juste changé le nom ici
 st.set_page_config(page_title="VIVO FILES", page_icon="📂", layout="centered")
 
-# --- STYLE CSS (BOUTONS GÉANTS & BRANDING) ---
+# --- STYLE CSS (BOUTONS GÉANTS) ---
 st.markdown("""
 <style>
     .stApp { background-color: #f0f2f5; }
     .block-container { padding-top: 2rem; padding-bottom: 5rem; }
-    
-    /* LE TITRE VIVO FILES */
-    .main-header { font-size: 2.5rem; font-weight: 900; color: #111; text-align: center; margin-bottom: 20px; }
-    .vivo-text { color: #EAB308; font-weight: 300; } /* Le jaune Vivo */
     
     /* Le compteur */
     .counter-badge {
@@ -139,7 +136,6 @@ if st.session_state.export_mode and len(st.session_state.notes) > 0:
     """, height=90) # Hauteur ajustée pour coller au bouton suivant
 
     # BOUTON 2 : STREAMLIT (Passer à la suivante)
-    # L'utilisateur clique ici quand il revient de Keep
     if st.button("✅ C'EST FAIT, SUIVANTE ➡️"):
         st.session_state.current_note_index += 1
         st.rerun()
@@ -149,17 +145,16 @@ if st.session_state.export_mode and len(st.session_state.notes) > 0:
         st.session_state.export_mode = False
         st.rerun()
 
-# 2. MODE IMPORT (Accueil VIVO FILES)
+# 2. MODE IMPORT (Accueil)
 else:
-    # Le HEADER Personnalisé
-    st.markdown('<div class="main-header">VIVO <span class="vivo-text">FILES</span></div>', unsafe_allow_html=True)
-    
+    # J'ai remis le titre simple qui marchait, juste changé le texte
+    st.title("📂 VIVO FILES")
     st.caption("Importe tes PDF, extrais le texte, et clique sur LESSSSGO.")
     
     files = st.file_uploader("Tes fichiers PDF", type=['pdf'], accept_multiple_files=True)
     
     if files:
-        # LE BOUTON PERSONNALISÉ
+        # J'ai changé le texte du bouton ici
         if st.button("LESSSSGO", type="primary"):
             bar = st.progress(0, "Démarrage...")
             for i, f in enumerate(files):
@@ -177,6 +172,6 @@ else:
             st.rerun()
             
         # Aperçu rapide liste
-        with st.expander("Voir la liste des fichiers prêts"):
+        with st.expander("Voir la liste"):
             for n in st.session_state.notes:
                 st.write(f"- {n['title']}")
