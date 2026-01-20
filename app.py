@@ -5,13 +5,17 @@ import time
 import json
 
 # --- CONFIGURATION OPTIMISÉE POUR MOBILE ---
-st.set_page_config(page_title="PDF to Keep TURBO", page_icon="⚡", layout="centered")
+st.set_page_config(page_title="VIVO FILES", page_icon="📂", layout="centered")
 
-# --- STYLE CSS (BOUTONS GÉANTS) ---
+# --- STYLE CSS (BOUTONS GÉANTS & BRANDING) ---
 st.markdown("""
 <style>
     .stApp { background-color: #f0f2f5; }
     .block-container { padding-top: 2rem; padding-bottom: 5rem; }
+    
+    /* LE TITRE VIVO FILES */
+    .main-header { font-size: 2.5rem; font-weight: 900; color: #111; text-align: center; margin-bottom: 20px; }
+    .vivo-text { color: #EAB308; font-weight: 300; } /* Le jaune Vivo */
     
     /* Le compteur */
     .counter-badge {
@@ -145,15 +149,18 @@ if st.session_state.export_mode and len(st.session_state.notes) > 0:
         st.session_state.export_mode = False
         st.rerun()
 
-# 2. MODE IMPORT (Accueil)
+# 2. MODE IMPORT (Accueil VIVO FILES)
 else:
-    st.title("⚡ PDF TURBO")
-    st.caption("Importe tes 100 PDF, extrais le texte, et exporte à la chaîne.")
+    # Le HEADER Personnalisé
+    st.markdown('<div class="main-header">VIVO <span class="vivo-text">FILES</span></div>', unsafe_allow_html=True)
+    
+    st.caption("Importe tes PDF, extrais le texte, et clique sur LESSSSGO.")
     
     files = st.file_uploader("Tes fichiers PDF", type=['pdf'], accept_multiple_files=True)
     
     if files:
-        if st.button(f"GO - TRAITER {len(files)} FICHIERS", type="primary"):
+        # LE BOUTON PERSONNALISÉ
+        if st.button("LESSSSGO", type="primary"):
             bar = st.progress(0, "Démarrage...")
             for i, f in enumerate(files):
                 txt = extract(f)
@@ -164,12 +171,12 @@ else:
 
     if len(st.session_state.notes) > 0:
         st.success(f"{len(st.session_state.notes)} notes prêtes !")
-        if st.button("🚀 LANCER LA SÉQUENCE D'EXPORT", type="primary"):
+        if st.button("🚀 LANCER LA SÉQUENCE", type="primary"):
             st.session_state.export_mode = True
             st.session_state.current_note_index = 0
             st.rerun()
             
         # Aperçu rapide liste
-        with st.expander("Voir la liste"):
+        with st.expander("Voir la liste des fichiers prêts"):
             for n in st.session_state.notes:
                 st.write(f"- {n['title']}")
